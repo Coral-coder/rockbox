@@ -1,5 +1,7 @@
 # /
 /build*
+!/Build_products/
+!/Build_products/**
 /sim*
 /output
 *.elf
