@@ -516,6 +516,7 @@ MENUITEM_FUNCTION(main_menu_config_item, 0, ID2P(LANG_MAIN_MENU),
 
 #if defined(HAVE_EROSQ_LINUX_CODEC)
 extern struct menu bluetooth_hosted_menu;
+extern struct menu carplay_lab_menu;
 #endif
 
 MAKE_MENU(main_menu_, ID2P(LANG_SETTINGS), NULL,
@@ -524,6 +525,7 @@ MAKE_MENU(main_menu_, ID2P(LANG_SETTINGS), NULL,
         &playback_settings,
 #if defined(HAVE_EROSQ_LINUX_CODEC)
         &bluetooth_hosted_menu,
+        &carplay_lab_menu,
 #endif
         &settings_menu_item, &theme_menu,
 #ifdef HAVE_RECORDING

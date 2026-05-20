@@ -42,6 +42,7 @@ menus/bluetooth_menu.c
 #endif
 #if defined(HAVE_EROSQ_LINUX_CODEC) && !defined(BOOTLOADER)
 menus/bluetooth_menu_hosted.c
+menus/carplay_lab_menu.c
 #endif
 menus/settings_menu.c
 menus/sound_menu.c
