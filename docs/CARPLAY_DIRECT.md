@@ -23,4 +23,6 @@ Logs: `/tmp/rb_carplay_lab.log` and `/.rockbox/carplay/last-run.log`
 2. **Phase 1** — Gadget composite spike (iAP2 + NCM), still no full CarPlay UI
 3. **Phase 2+** — Auth, session, H.264 encode (see HifiWalker `docs/carplay/`)
 
-Base branch: `h2-hw4-hosted-bt`. Merge target when CarPlay path is proven.
+**Includes `master` merge:** hosted BT routing, `Build_products`, and CarPlay lab menu on one branch.
+
+BT bring-up uses **`sa_config bt_addr` only** (no hardcoded fallback MAC in `device-bt-bringup.sh`).
