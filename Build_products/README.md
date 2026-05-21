@@ -1,26 +1,75 @@
-# Hifi Walker H2 (HW4) — prebuilt binaries
+# Hifi Walker H2 (HW4) — Build_products kit
 
-Hosted Rockbox for stock HiBy Linux (not bare-metal native boot).
+**Hosted Rockbox** under stock HiBy Linux v2.3 — not bare-metal native boot.
 
-## Files
+This folder is a **complete recovery and deploy kit**. Read this page first, then open the numbered guide that matches your situation.
 
-| File | Size | MD5 | Notes |
-|------|------|-----|-------|
-| [rockbox.erosq](rockbox.erosq) | 1,376,548 bytes | `DD4872BD47A901374CA1A57CEE0128B9` | Hosted BT build (before CarPlay lab menu) |
-| [update.upt](update.upt) | 61,483,008 bytes | `2DAC5D428BC60572DB42C05E9303D5A9` | Stock v2.3 **force bootloader** recovery |
+---
 
-## Install hosted Rockbox
+## Which guide do I need?
 
-Copy `rockbox.erosq` to SD: `/.rockbox/rockbox.erosq`  
-Boot stock HiBy → launch Rockbox from the launcher.
+| Your situation | Read this |
+|----------------|-----------|
+| I want to **build** hosted Rockbox from source | [01-BUILD-HOSTED.md](01-BUILD-HOSTED.md) |
+| Player boots **native Rockbox** or wrong NAND; I want **stock HiBy** back | [02-RESTORE-TO-STOCK.md](02-RESTORE-TO-STOCK.md) |
+| I want **native** bare-metal Rockbox (advanced; not daily use) | [03-RESTORE-TO-NATIVE.md](03-RESTORE-TO-NATIVE.md) |
+| Stock Linux works; I want **hosted** Rockbox + Bluetooth on SD | [04-RESTORE-TO-HOSTED.md](04-RESTORE-TO-HOSTED.md) |
+| **Black screen**, recovery broken, USB-only rescue | [05-JZTOOL-EMERGENCY.md](05-JZTOOL-EMERGENCY.md) |
 
-## Install recovery `update.upt`
+---
 
-Copy to **SD card root** (not inside `.rockbox`). Flash from stock update UI, then remove the file from SD so it is not applied again.
+## What is in this folder?
 
-## Verify
+| Path | Put on SD? | Purpose |
+|------|------------|---------|
+| `rockbox.erosq` | → `/.rockbox/` | Hosted app (master build, BT menu) |
+| `update.upt` | → **SD root** (temporary) | Stock v2.3 + **forced uboot** NAND recovery |
+| `hosted-on-sd/` | Copy contents to `/.rockbox/` | Same app + `device-bt-bringup.sh` |
+| `nand-recovery/bootloader.erosq` | → **SD root** only when fixing NAND via recovery menu | Dual-boot hosted bootloader |
+| `jztool/jztool.exe` | PC only | Load bootloader into RAM over USB |
+| `scripts/Apply-Hosted-To-SD.ps1` | PC only | Automated hosted SD layout |
+| `CHECKSUMS.txt` | — | MD5 verify every file |
+
+**Verify after copy:**
 
 ```powershell
-(Get-FileHash .\.rockbox\rockbox.erosq -Algorithm MD5).Hash   # DD4872BD...
-(Get-FileHash .\update.upt -Algorithm MD5).Hash               # 2DAC5D42...
+cd Build_products
+Get-FileHash rockbox.erosq, update.upt, nand-recovery\bootloader.erosq -Algorithm MD5
+# Compare to CHECKSUMS.txt
 ```
+
+---
+
+## Normal daily use (hosted)
+
+1. SD has **only** `/.rockbox/rockbox.erosq` (+ optional `device-bt-bringup.sh`).
+2. **No** `bootloader.erosq`, `update.upt`, or `rockbox_main.aigo_erosqn` on SD.
+3. Power on → **HiBy launcher** → open Rockbox from stock music app.
+4. Bluetooth: **Settings → General Settings → Bluetooth**.
+
+Quick deploy: [04-RESTORE-TO-HOSTED.md](04-RESTORE-TO-HOSTED.md) or `.\scripts\Apply-Hosted-To-SD.ps1 -Drive E:`
+
+---
+
+## Critical mistakes (avoid)
+
+| Mistake | Result |
+|---------|--------|
+| Flash `H2-v23-patched.upt` when you want hosted | NAND becomes **native-first** |
+| Use Rockbox **Install or update** to apply `update.upt` | Wrong tool — use **HiBy stock updater** |
+| Leave `update.upt` on SD after flash | Accidental re-flash |
+| `bootloader.erosq` on SD root “just in case” | Can flash **native** bootloader to NAND |
+| Restore `erosqnative-boot.bin` if file starts with `spl.eros` | **Corrupts NAND** (not a backup) |
+
+---
+
+## Build info
+
+| Item | Value |
+|------|-------|
+| Source | https://github.com/Coral-coder/rockbox `master` |
+| Target | `aigoerosq` hosted (`--type=N`) |
+| Built | 2026-05-20 |
+| `rockbox.erosq` MD5 | `CA89ABB8047B1574015D9593C1A112E7` |
+
+See [01-BUILD-HOSTED.md](01-BUILD-HOSTED.md) to reproduce.
