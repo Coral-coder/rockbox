@@ -193,9 +193,29 @@ static void erosq_restore_wired_output(void)
     if (!muted)
         audiohw_mute(false);
 
+    pcm_alsa_prepare_playback_open();
     pcm_restart_active_playback();
     erosq_route_log("wired restore", ps, erosq_read_output_port());
     erosq_route_log_sd("wired restore", ps, erosq_read_output_port());
+}
+
+void erosq_disconnect_bluetooth_audio(void)
+{
+    if (!hw_init)
+        return;
+
+    erosq_bt_route_active = 0;
+    erosq_bt_port_latched = 0;
+    erosq_bt_apply_attempts = 0;
+    erosq_bt_peer[0] = '\0';
+    erosq_clear_asound_bluetooth();
+    last_ps = -1;
+
+    pcm_play_lock();
+    erosq_restore_wired_output();
+    pcm_play_unlock();
+
+    erosq_route_log_sd("bt disconnect", 0, erosq_read_output_port());
 }
 
 static bool erosq_switch_to_bluetooth_pcm(void)
@@ -313,6 +333,8 @@ void erosq_ensure_wired_output(void)
 
 void erosq_set_bluetooth_route(int on)
 {
+    const int was_bt_route = erosq_bt_route_active;
+
     erosq_bt_route_active = on ? 1 : 0;
     if (!hw_init) {
         erosq_route_log(on ? "bt_route(on) deferred" : "bt_route(off) deferred",
@@ -323,7 +345,7 @@ void erosq_set_bluetooth_route(int on)
     last_ps = -1;
     if (!on) {
         erosq_bt_apply_attempts = 0;
-        if (!erosq_bt_port_latched && !erosq_bt_pcm_dev[0]
+        if (!was_bt_route && !erosq_bt_port_latched && !erosq_bt_pcm_dev[0]
             && erosq_read_output_port() != EROSQ_OUTPUT_BLUETOOTH) {
             erosq_route_log("wired already", 0, erosq_read_output_port());
             return;

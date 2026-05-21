@@ -11,6 +11,7 @@
 #include "settings.h"
 #include "thread.h"
 #include "erosqlinux_codec.h"
+#include "pcm-internal.h"
 #include "gui/list.h"
 #include <stdio.h>
 #include <string.h>
@@ -38,8 +39,9 @@ static long bt_auto_stack[BT_AUTO_STACK_SZ];
 static unsigned int bt_auto_thread;
 static volatile bool bt_auto_run;
 static volatile bool bt_connected;
-/* ACL probe lags bt-connect; hold BT route while link comes up. */
+/* ACL probe lags bt-connect; hold BT route only while connecting (not after drop). */
 static unsigned int bt_connect_hold_until;
+static bool bt_acl_was_up;
 static volatile bool stack_start_issued;
 static volatile bool bt_stack_live;
 static unsigned int bt_bringup_wait_ticks;
@@ -54,6 +56,7 @@ static bool bt_dev_paired[BT_MAX_DEVICES];
 static void bt_refresh_status_text(void);
 static void bt_on_connect_hold(void);
 static bool bt_effective_connected(bool stack_up, bool acl_up);
+static void bt_handle_audio_disconnect(void);
 
 static void bt_ui_log(const char *msg)
 {
@@ -543,8 +546,9 @@ static int bt_disconnect_callback(void)
 {
     bt_shell("bt-connect -d 2>/dev/null; bt-device -d 2>/dev/null");
     bt_connect_hold_until = 0;
+    bt_acl_was_up = false;
     bt_connected = false;
-    erosq_set_bluetooth_route(0);
+    bt_handle_audio_disconnect();
     bt_refresh_status_text();
     splash(HZ * 2, "Disconnected");
     return ACTION_NONE;
@@ -596,9 +600,6 @@ static void bt_auto_thread_fn(void)
         const bool acl_up = stack_up && bt_query_acl_connected();
         const bool connected = bt_effective_connected(stack_up, acl_up);
 
-        if (acl_up)
-            bt_on_connect_hold();
-
         if (connected != was_connected) {
             bt_connected = connected;
             bt_refresh_status_text();
@@ -607,14 +608,14 @@ static void bt_auto_thread_fn(void)
                 erosq_set_bluetooth_route(1);
                 erosq_apply_bluetooth_route();
             } else {
-                erosq_ensure_wired_output();
+                bt_handle_audio_disconnect();
             }
         } else {
             bt_connected = connected;
             if (!connected && stack_up
                 && (erosq_is_bluetooth_route_active()
                     || erosq_bluetooth_route_applied()))
-                erosq_ensure_wired_output();
+                bt_handle_audio_disconnect();
         }
 
         was_connected = connected;
@@ -644,7 +645,8 @@ static void bt_auto_stop(void)
     bt_bringup_wait_ticks = 0;
     bt_stack_live = false;
     bt_connect_hold_until = 0;
-    erosq_set_bluetooth_route(0);
+    bt_acl_was_up = false;
+    bt_handle_audio_disconnect();
     bt_stack_stop();
 }
 
@@ -673,12 +675,32 @@ static void bt_on_connect_hold(void)
     bt_connect_hold_until = current_tick + HZ * 12;
 }
 
+static void bt_handle_audio_disconnect(void)
+{
+    const bool resume = pcm_playing;
+
+    erosq_disconnect_bluetooth_audio();
+    if (resume)
+        pcm_restart_active_playback();
+}
+
 static bool bt_effective_connected(bool stack_up, bool acl_up)
 {
-    if (!stack_up)
+    if (!stack_up) {
+        bt_connect_hold_until = 0;
+        bt_acl_was_up = false;
         return false;
-    if (acl_up)
+    }
+    if (acl_up) {
+        bt_acl_was_up = true;
         return true;
+    }
+    /* Headphones off / out of range: ACL gone — do not use connect hold. */
+    if (bt_acl_was_up) {
+        bt_connect_hold_until = 0;
+        bt_acl_was_up = false;
+        return false;
+    }
     return TIME_BEFORE(current_tick, bt_connect_hold_until);
 }
 

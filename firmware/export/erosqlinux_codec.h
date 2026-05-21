@@ -29,6 +29,8 @@ bool erosq_bluetooth_route_applied(void);
 bool erosq_is_bluetooth_route_active(void);
 /* Hosted BT: wired jack whenever not streaming A2DP (incl. "BT: waiting"). */
 void erosq_ensure_wired_output(void);
+/* ACL lost / headphones off: tear down BT PCM and restore wired path. */
+void erosq_disconnect_bluetooth_audio(void);
 void erosq_notify_pcm_running(void);
 
 #endif
