@@ -459,6 +459,29 @@ void pcm_playback_invalidate_config(void)
     sinks[cur_sink]->configured_freq = -1U;
 }
 
+void pcm_restart_active_playback(void)
+{
+    const void *start;
+    size_t size;
+
+    if (!pcm_is_initialized())
+        return;
+
+    pcm_play_lock();
+    /* Never pcm_play_stop_int() here — that clears codec callbacks permanently. */
+    if (!pcm_playing || !pcm_callback_for_more) {
+        pcm_play_unlock();
+        return;
+    }
+
+    sinks[cur_sink]->ops.stop();
+    pcm_apply_settings();
+    if (pcm_get_more_int(&start, &size))
+        pcm_play_dma_start_int(start, size);
+
+    pcm_play_unlock();
+}
+
 #ifdef HAVE_RECORDING
 /** Low level pcm recording apis **/
 

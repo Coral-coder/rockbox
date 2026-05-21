@@ -45,6 +45,8 @@ bool pcm_alsa_reopen_playback_safe(void);
 void pcm_alsa_release_playback_for_mixer(void);
 /* Re-apply hw/sw params after switching playback_dev (e.g. bluetooth PCM). */
 void pcm_alsa_reconfigure_playback(void);
+/* After route switch, leave analog PCM prepared for the next play. */
+void pcm_alsa_prepare_playback_open(void);
 
 unsigned int pcm_alsa_get_rate(void);
 unsigned int pcm_alsa_get_xruns(void);

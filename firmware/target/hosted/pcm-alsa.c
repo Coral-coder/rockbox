@@ -855,6 +855,17 @@ void pcm_alsa_reconfigure_playback(void)
     sink_unlock();
 }
 
+void pcm_alsa_prepare_playback_open(void)
+{
+    sink_lock();
+    if (handle) {
+        int err = snd_pcm_prepare(handle);
+        if (err < 0)
+            logf("prepare after route: %s", snd_strerror(err));
+    }
+    sink_unlock();
+}
+
 static void sink_dma_stop(void)
 {
     logf("PCM DMA stop (%d)", snd_pcm_state(handle));
