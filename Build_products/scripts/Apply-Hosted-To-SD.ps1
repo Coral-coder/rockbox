@@ -20,7 +20,7 @@ $ErrorActionPreference = "Stop"
 $kitRoot = Split-Path -Parent $PSScriptRoot
 $hostedApp = Join-Path $kitRoot "hosted-on-sd\rockbox.erosq"
 $btScript = Join-Path $kitRoot "hosted-on-sd\device-bt-bringup.sh"
-$expectedAppMd5 = "49F9B2109DC4771C4F9BC81DACAC4D0C"
+$expectedAppMd5 = "BE4F0C07E36E8FFE6815F07C787A096C"
 
 if (-not (Test-Path -LiteralPath $hostedApp)) {
     throw "Missing kit file: $hostedApp"

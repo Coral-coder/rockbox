@@ -1,8 +1,8 @@
 # Hifi Walker H2 HW4 — Build_products checksums (MD5)
 # Generated: 2026-05-20 — verify after download or SD copy
 
-rockbox.erosq                          1380604  49F9B2109DC4771C4F9BC81DACAC4D0C
-hosted-on-sd/rockbox.erosq              1380604  49F9B2109DC4771C4F9BC81DACAC4D0C
+rockbox.erosq                          1380580  BE4F0C07E36E8FFE6815F07C787A096C
+hosted-on-sd/rockbox.erosq              1380580  BE4F0C07E36E8FFE6815F07C787A096C
 update.upt                            61483008  2DAC5D428BC60572DB42C05E9303D5A9
 nand-recovery/bootloader.erosq           92160  CF5BF9028B6DA9A985A98FE272C8DC3A
 hosted-on-sd/device-bt-bringup.sh         2560  0CA9B5A29E54C3E92468D027340AAADD

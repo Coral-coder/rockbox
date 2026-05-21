@@ -335,6 +335,12 @@ void erosq_set_bluetooth_route(int on)
         return;
     }
 
+    /* Do not tear down BT PCM if already latched (repeated sync must not freeze). */
+    if (erosq_bt_port_latched && erosq_bt_pcm_dev[0]) {
+        erosq_route_log("bt_route already", 0, 0);
+        return;
+    }
+
     erosq_bt_port_latched = 0;
     erosq_bt_apply_attempts = 0;
     unlink(EROSQ_ROUTE_LOG);

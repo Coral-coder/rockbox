@@ -38,6 +38,8 @@ static long bt_auto_stack[BT_AUTO_STACK_SZ];
 static unsigned int bt_auto_thread;
 static volatile bool bt_auto_run;
 static volatile bool bt_connected;
+/* ACL probe lags bt-connect; hold BT route while link comes up. */
+static unsigned int bt_connect_hold_until;
 static volatile bool stack_start_issued;
 static volatile bool bt_stack_live;
 static unsigned int bt_bringup_wait_ticks;
@@ -50,7 +52,8 @@ static char bt_dev_name[BT_MAX_DEVICES][BT_NAME_LEN];
 static bool bt_dev_paired[BT_MAX_DEVICES];
 
 static void bt_refresh_status_text(void);
-static void bt_sync_alsa_route(void);
+static void bt_on_connect_hold(void);
+static bool bt_effective_connected(bool stack_up, bool acl_up);
 
 static void bt_ui_log(const char *msg)
 {
@@ -539,8 +542,9 @@ static int bt_paired_devices_callback(void)
 static int bt_disconnect_callback(void)
 {
     bt_shell("bt-connect -d 2>/dev/null; bt-device -d 2>/dev/null");
-    erosq_set_bluetooth_route(0);
+    bt_connect_hold_until = 0;
     bt_connected = false;
+    erosq_set_bluetooth_route(0);
     bt_refresh_status_text();
     splash(HZ * 2, "Disconnected");
     return ACTION_NONE;
@@ -583,17 +587,35 @@ static void bt_auto_thread_fn(void)
         bt_stack_live = stack_up;
         if (stack_up != was_stack_up) {
             bt_ui_log(stack_up ? "auto: stack up" : "auto: stack down");
+            if (stack_up && !bt_effective_connected(stack_up, false))
+                erosq_ensure_wired_output();
             bt_refresh_status_text();
         }
         was_stack_up = stack_up;
 
-        const bool connected = stack_up && bt_query_acl_connected();
-        bt_connected = connected;
+        const bool acl_up = stack_up && bt_query_acl_connected();
+        const bool connected = bt_effective_connected(stack_up, acl_up);
 
-        if (connected != was_connected)
+        if (acl_up)
+            bt_on_connect_hold();
+
+        if (connected != was_connected) {
+            bt_connected = connected;
             bt_refresh_status_text();
-        else
-            bt_sync_alsa_route();
+            if (connected) {
+                erosq_sync_bluetooth_peer();
+                erosq_set_bluetooth_route(1);
+                erosq_apply_bluetooth_route();
+            } else {
+                erosq_ensure_wired_output();
+            }
+        } else {
+            bt_connected = connected;
+            if (!connected && stack_up
+                && (erosq_is_bluetooth_route_active()
+                    || erosq_bluetooth_route_applied()))
+                erosq_ensure_wired_output();
+        }
 
         was_connected = connected;
 
@@ -621,6 +643,7 @@ static void bt_auto_stop(void)
     bt_auto_run = false;
     bt_bringup_wait_ticks = 0;
     bt_stack_live = false;
+    bt_connect_hold_until = 0;
     erosq_set_bluetooth_route(0);
     bt_stack_stop();
 }
@@ -645,23 +668,24 @@ static int bt_enable_callback(int action,
     return action;
 }
 
-/* A2DP ALSA only when ACL connected; "waiting" / starting = wired jack. */
-static void bt_sync_alsa_route(void)
+static void bt_on_connect_hold(void)
 {
-    if (global_settings.bluetooth_enabled && bt_connected) {
-        erosq_sync_bluetooth_peer();
-        erosq_set_bluetooth_route(1);
-        erosq_apply_bluetooth_route();
-    } else {
-        erosq_ensure_wired_output();
-    }
+    bt_connect_hold_until = current_tick + HZ * 12;
+}
+
+static bool bt_effective_connected(bool stack_up, bool acl_up)
+{
+    if (!stack_up)
+        return false;
+    if (acl_up)
+        return true;
+    return TIME_BEFORE(current_tick, bt_connect_hold_until);
 }
 
 static void bt_refresh_status_text(void)
 {
     if (!global_settings.bluetooth_enabled) {
         snprintf(bt_status_text, sizeof(bt_status_text), "BT: off");
-        bt_sync_alsa_route();
         return;
     }
     if (bt_connected)
@@ -672,8 +696,6 @@ static void bt_refresh_status_text(void)
         snprintf(bt_status_text, sizeof(bt_status_text), "BT: starting...");
     else
         snprintf(bt_status_text, sizeof(bt_status_text), "BT: bringup retry");
-
-    bt_sync_alsa_route();
 }
 
 static int bluetooth_hosted_menu_callback(int action,
