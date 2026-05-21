@@ -25,4 +25,4 @@ Logs: `/tmp/rb_carplay_lab.log` and `/.rockbox/carplay/last-run.log`
 
 **Includes `master` merge:** hosted BT routing, `Build_products`, and CarPlay lab menu on one branch.
 
-BT bring-up uses **`sa_config bt_addr` only** (no hardcoded fallback MAC in `device-bt-bringup.sh`).
+BT bring-up: **`sa_config bt_addr`**, fallback **`DE:AD:BE:EF:00:00`** (old `42:54:30:…` removed).
