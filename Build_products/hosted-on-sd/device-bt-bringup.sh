@@ -30,7 +30,7 @@ bt_radio_and_hci() {
   echo 1 > /sys/class/rfkill/rfkill0/state
   sleep 1
   BT_ADDR=$(sa_config bt_addr 2>/dev/null)
-  test -n "$BT_ADDR" || BT_ADDR=42:54:30:00:09:9e
+  test -n "$BT_ADDR" || BT_ADDR=DE:AD:BE:EF:00:00
   log "patchram bd_addr=$BT_ADDR"
   brcm_patchram_plus --enable_hci --baudrate 3000000 --no2bytes \
     --patchram /lib/firmware/BCM4343A1_001.002.009.0122.0538.hcd /dev/ttyS0 \

@@ -148,23 +148,56 @@ static void erosq_clear_asound_bluetooth(void)
     unsetenv("ALSA_CONFIG_PATH");
 }
 
-static void erosq_force_dac_off_bluetooth_port(void)
+/* Stock bluez/amixer owns "Output Port Switch" (numid=4); ctl API alone often fails. */
+static void erosq_amixer_output_port(long ps)
 {
-    long int ps = 0;
-    int status = 0;
+    char cmd[192];
 
-    if (erosq_read_output_port() != EROSQ_OUTPUT_BLUETOOTH)
-        return;
+    snprintf(cmd, sizeof(cmd),
+             "/bin/sh -c \"PATH=/usr/sbin:/usr/bin:/bin:/sbin "
+             "amixer -c 0 cset numid=4 %ld >/dev/null 2>&1; "
+             "amixer -c 0 sset 'Output Port Switch' %ld >/dev/null 2>&1\"",
+             ps, ps);
+    system(cmd);
+}
 
-    sysfs_get_int("/sys/class/switch/lineout/state", &status);
-    if (status)
-        ps = 1;
-    sysfs_get_int("/sys/class/switch/headset/state", &status);
-    if (status)
-        ps = 2;
+static void erosq_a2dp_disconnect_peer(void)
+{
+    char cmd[128];
+
+    if (erosq_bt_peer[0]) {
+        snprintf(cmd, sizeof(cmd),
+                 "/bin/sh -c \"PATH=/usr/sbin:/usr/bin:/bin:/sbin "
+                 "bt-connect -d %s 2>/dev/null\"",
+                 erosq_bt_peer);
+    } else {
+        snprintf(cmd, sizeof(cmd),
+                 "/bin/sh -c \"PATH=/usr/sbin:/usr/bin:/bin:/sbin "
+                 "bt-connect -d 2>/dev/null\"");
+    }
+    system(cmd);
+}
+
+static long erosq_apply_output_port(long ps)
+{
+    int attempt;
+    long got;
 
     last_ps = -1;
-    erosq_set_output((int)ps);
+    for (attempt = 0; attempt < 6; attempt++) {
+        if (attempt > 0)
+            sleep(HZ / 10);
+        erosq_amixer_output_port(ps);
+        erosq_set_output((int)ps);
+        got = erosq_read_output_port();
+        if (got == ps) {
+            last_ps = ps;
+            return got;
+        }
+    }
+    last_ps = ps;
+    erosq_route_log_sd("set port fail", ps, got);
+    return got;
 }
 
 static bool erosq_switch_to_analog_pcm(void)
@@ -180,9 +213,9 @@ static bool erosq_switch_to_analog_pcm(void)
     {
         bool ok = false;
 
-        for (attempt = 0; attempt < 5; attempt++) {
+        for (attempt = 0; attempt < 2; attempt++) {
             if (attempt > 0)
-                sleep(attempt * (HZ / 10));
+                sleep(HZ / 20);
             if (pcm_alsa_reopen_playback_safe()) {
                 ok = true;
                 break;
@@ -220,20 +253,22 @@ static void erosq_restore_wired_output(void)
     if (status)
         ps = 2;
 
-    erosq_force_dac_off_bluetooth_port();
-    last_ps = -1;
-    erosq_set_output((int)ps);
-
     pcm_alsa_set_playback_device(EROSQ_ANALOG_PLAYBACK);
     if (!erosq_switch_to_analog_pcm()) {
         erosq_route_log_sd("analog reopen fail", ps, erosq_read_output_port());
         return;
     }
 
+    erosq_a2dp_disconnect_peer();
+    erosq_amixer_output_port(ps);
+    last_ps = ps;
+    erosq_set_output((int)ps);
+
     audiohw_set_volume(vol_l_hw, vol_r_hw);
     if (!muted)
         audiohw_mute(false);
 
+    erosq_get_outputs();
     erosq_route_log("wired restore", ps, erosq_read_output_port());
     erosq_route_log_sd("wired restore", ps, erosq_read_output_port());
 }
@@ -246,7 +281,6 @@ void erosq_disconnect_bluetooth_audio(void)
     erosq_bt_route_active = 0;
     erosq_bt_port_latched = 0;
     erosq_bt_apply_attempts = 0;
-    erosq_bt_peer[0] = '\0';
     erosq_clear_asound_bluetooth();
     last_ps = -1;
 
@@ -257,10 +291,22 @@ void erosq_disconnect_bluetooth_audio(void)
     erosq_route_log_sd("bt disconnect", 0, erosq_read_output_port());
 }
 
+bool erosq_wired_headphones_plugged(void)
+{
+    int status = 0;
+
+    if (!hw_init)
+        return false;
+    sysfs_get_int("/sys/class/switch/headset/state", &status);
+    return status != 0;
+}
+
 static bool erosq_switch_to_bluetooth_pcm(void)
 {
     if (!erosq_bt_peer[0])
         return false;
+
+    erosq_apply_output_port(EROSQ_OUTPUT_BLUETOOTH);
 
     erosq_build_bt_pcm_name(erosq_bt_peer, erosq_bt_pcm_dev, sizeof(erosq_bt_pcm_dev));
     if (!erosq_write_asound_bluetooth(erosq_bt_peer)) {
@@ -309,6 +355,11 @@ void erosq_set_bluetooth_peer(const char *bdaddr)
     if (!bdaddr || strlen(bdaddr) < 17)
         return;
     snprintf(erosq_bt_peer, sizeof(erosq_bt_peer), "%.17s", bdaddr);
+}
+
+const char *erosq_get_bluetooth_peer(void)
+{
+    return erosq_bt_peer[0] ? erosq_bt_peer : NULL;
 }
 
 void audiohw_mute(int mute)
@@ -445,7 +496,7 @@ void erosq_set_output(int ps)
         return;
     if (muted && ps != 0)
         return;
-    if (erosq_bt_route_active)
+    if (erosq_bt_route_active && ps != EROSQ_OUTPUT_BLUETOOTH)
         return;
 
     if (last_ps != ps) {

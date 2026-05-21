@@ -23,6 +23,7 @@ void erosq_set_output(int ps);
 int erosq_get_outputs(void);
 /* BD_ADDR as AA:BB:CC:DD:EE:FF before erosq_set_bluetooth_route(1). */
 void erosq_set_bluetooth_peer(const char *bdaddr);
+const char *erosq_get_bluetooth_peer(void);
 void erosq_set_bluetooth_route(int on);
 void erosq_apply_bluetooth_route(void);
 bool erosq_bluetooth_route_applied(void);
@@ -31,6 +32,7 @@ bool erosq_is_bluetooth_route_active(void);
 void erosq_ensure_wired_output(void);
 /* ACL lost / headphones off: tear down BT PCM and restore wired path. */
 void erosq_disconnect_bluetooth_audio(void);
+bool erosq_wired_headphones_plugged(void);
 void erosq_notify_pcm_running(void);
 
 #endif
