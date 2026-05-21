@@ -148,17 +148,54 @@ static void erosq_clear_asound_bluetooth(void)
     unsetenv("ALSA_CONFIG_PATH");
 }
 
+static void erosq_force_dac_off_bluetooth_port(void)
+{
+    long int ps = 0;
+    int status = 0;
+
+    if (erosq_read_output_port() != EROSQ_OUTPUT_BLUETOOTH)
+        return;
+
+    sysfs_get_int("/sys/class/switch/lineout/state", &status);
+    if (status)
+        ps = 1;
+    sysfs_get_int("/sys/class/switch/headset/state", &status);
+    if (status)
+        ps = 2;
+
+    last_ps = -1;
+    erosq_set_output((int)ps);
+}
+
 static bool erosq_switch_to_analog_pcm(void)
 {
+    int attempt;
+
     erosq_clear_asound_bluetooth();
+    unlink(EROSQ_ASOUND_BT_CONF);
     pcm_alsa_release_playback_for_mixer();
-    pcm_alsa_set_playback_device(EROSQ_ANALOG_PLAYBACK);
     erosq_bt_pcm_dev[0] = '\0';
-    if (!pcm_alsa_reopen_playback_safe())
-        return false;
+    pcm_alsa_set_playback_device(EROSQ_ANALOG_PLAYBACK);
+
+    {
+        bool ok = false;
+
+        for (attempt = 0; attempt < 5; attempt++) {
+            if (attempt > 0)
+                sleep(attempt * (HZ / 10));
+            if (pcm_alsa_reopen_playback_safe()) {
+                ok = true;
+                break;
+            }
+        }
+        if (!ok)
+            return false;
+    }
+
     pcm_playback_invalidate_config();
     pcm_alsa_reconfigure_playback();
     pcm_apply_settings();
+    pcm_alsa_prepare_playback_open();
     return true;
 }
 
@@ -167,34 +204,36 @@ static void erosq_restore_wired_output(void)
 {
     long int ps = 0;
     int status = 0;
-    long int port;
 
     if (!hw_init)
         return;
 
-    erosq_switch_to_analog_pcm();
-
-    port = erosq_read_output_port();
-    if (port == EROSQ_OUTPUT_BLUETOOTH)
-        last_ps = -1;
+    erosq_clear_asound_bluetooth();
+    unlink(EROSQ_ASOUND_BT_CONF);
+    pcm_alsa_release_playback_for_mixer();
+    erosq_bt_pcm_dev[0] = '\0';
 
     sysfs_get_int("/sys/class/switch/lineout/state", &status);
     if (status)
         ps = 1;
-
     sysfs_get_int("/sys/class/switch/headset/state", &status);
     if (status)
         ps = 2;
 
+    erosq_force_dac_off_bluetooth_port();
     last_ps = -1;
     erosq_set_output((int)ps);
-    audiohw_set_volume(vol_l_hw, vol_r_hw);
 
+    pcm_alsa_set_playback_device(EROSQ_ANALOG_PLAYBACK);
+    if (!erosq_switch_to_analog_pcm()) {
+        erosq_route_log_sd("analog reopen fail", ps, erosq_read_output_port());
+        return;
+    }
+
+    audiohw_set_volume(vol_l_hw, vol_r_hw);
     if (!muted)
         audiohw_mute(false);
 
-    pcm_alsa_prepare_playback_open();
-    pcm_restart_active_playback();
     erosq_route_log("wired restore", ps, erosq_read_output_port());
     erosq_route_log_sd("wired restore", ps, erosq_read_output_port());
 }

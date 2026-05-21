@@ -11,7 +11,7 @@
 #include "settings.h"
 #include "thread.h"
 #include "erosqlinux_codec.h"
-#include "pcm-internal.h"
+#include "audio.h"
 #include "gui/list.h"
 #include <stdio.h>
 #include <string.h>
@@ -677,11 +677,14 @@ static void bt_on_connect_hold(void)
 
 static void bt_handle_audio_disconnect(void)
 {
-    const bool resume = pcm_playing;
+    const int st = audio_status();
 
     erosq_disconnect_bluetooth_audio();
-    if (resume)
-        pcm_restart_active_playback();
+    /* BT PCM drop leaves Rockbox paused/stopped; restart the audio thread path. */
+    if (st & AUDIO_STATUS_PAUSE)
+        audio_resume();
+    else if (!(st & AUDIO_STATUS_PLAY))
+        audio_play(0, 0);
 }
 
 static bool bt_effective_connected(bool stack_up, bool acl_up)

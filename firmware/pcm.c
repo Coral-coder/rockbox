@@ -468,17 +468,16 @@ void pcm_restart_active_playback(void)
         return;
 
     pcm_play_lock();
-    if (!pcm_playing) {
+    /* Never pcm_play_stop_int() here — that clears codec callbacks permanently. */
+    if (!pcm_playing || !pcm_callback_for_more) {
         pcm_play_unlock();
         return;
     }
 
-    pcm_play_stop_int();
+    sinks[cur_sink]->ops.stop();
     pcm_apply_settings();
     if (pcm_get_more_int(&start, &size))
         pcm_play_dma_start_int(start, size);
-    else
-        pcm_play_stop_int();
 
     pcm_play_unlock();
 }
