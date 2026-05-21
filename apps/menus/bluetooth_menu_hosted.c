@@ -50,6 +50,7 @@ static char bt_dev_name[BT_MAX_DEVICES][BT_NAME_LEN];
 static bool bt_dev_paired[BT_MAX_DEVICES];
 
 static void bt_refresh_status_text(void);
+static void bt_sync_alsa_route(void);
 
 static void bt_ui_log(const char *msg)
 {
@@ -589,19 +590,11 @@ static void bt_auto_thread_fn(void)
         const bool connected = stack_up && bt_query_acl_connected();
         bt_connected = connected;
 
-        if (connected != was_connected) {
-            if (connected) {
-                erosq_sync_bluetooth_peer();
-                erosq_set_bluetooth_route(1);
-                erosq_apply_bluetooth_route();
-            } else {
-                erosq_set_bluetooth_route(0);
-            }
+        if (connected != was_connected)
             bt_refresh_status_text();
-        } else if (connected && !erosq_bluetooth_route_applied()) {
-            erosq_sync_bluetooth_peer();
-            erosq_apply_bluetooth_route();
-        }
+        else
+            bt_sync_alsa_route();
+
         was_connected = connected;
 
         sleep(stack_up ? (connected ? HZ / 4 : HZ / 2) : HZ / 2);
@@ -640,9 +633,10 @@ static int bt_enable_callback(int action,
     (void)this_list;
 
     if (action == ACTION_EXIT_MENUITEM) {
-        if (global_settings.bluetooth_enabled)
+        if (global_settings.bluetooth_enabled) {
+            erosq_ensure_wired_output();
             bt_auto_start();
-        else
+        } else
             bt_auto_stop();
         bt_refresh_status_text();
         splash(HZ * 2, global_settings.bluetooth_enabled ?
@@ -651,10 +645,23 @@ static int bt_enable_callback(int action,
     return action;
 }
 
+/* A2DP ALSA only when ACL connected; "waiting" / starting = wired jack. */
+static void bt_sync_alsa_route(void)
+{
+    if (global_settings.bluetooth_enabled && bt_connected) {
+        erosq_sync_bluetooth_peer();
+        erosq_set_bluetooth_route(1);
+        erosq_apply_bluetooth_route();
+    } else {
+        erosq_ensure_wired_output();
+    }
+}
+
 static void bt_refresh_status_text(void)
 {
     if (!global_settings.bluetooth_enabled) {
         snprintf(bt_status_text, sizeof(bt_status_text), "BT: off");
+        bt_sync_alsa_route();
         return;
     }
     if (bt_connected)
@@ -665,6 +672,8 @@ static void bt_refresh_status_text(void)
         snprintf(bt_status_text, sizeof(bt_status_text), "BT: starting...");
     else
         snprintf(bt_status_text, sizeof(bt_status_text), "BT: bringup retry");
+
+    bt_sync_alsa_route();
 }
 
 static int bluetooth_hosted_menu_callback(int action,
@@ -708,6 +717,7 @@ MAKE_MENU(bluetooth_hosted_menu, ID2P(LANG_BLUETOOTH),
 
 void bluetooth_hosted_boot_init(void)
 {
+    erosq_ensure_wired_output();
     if (global_settings.bluetooth_enabled)
         bt_auto_start();
 }

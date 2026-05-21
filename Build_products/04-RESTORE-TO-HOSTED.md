@@ -59,7 +59,7 @@ E:\.rockbox\bcm43438.fw
 
 ```powershell
 (Get-FileHash E:\.rockbox\rockbox.erosq -Algorithm MD5).Hash
-# F43779A73D254AFE263736DEA3F67FDD
+# 49F9B2109DC4771C4F9BC81DACAC4D0C
 
 (Get-FileHash E:\.rockbox\device-bt-bringup.sh -Algorithm MD5).Hash
 # 0CA9B5A29E54C3E92468D027340AAADD

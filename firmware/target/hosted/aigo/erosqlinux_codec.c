@@ -301,6 +301,16 @@ int erosq_get_outputs(void)
     return ps;
 }
 
+void erosq_ensure_wired_output(void)
+{
+    if (!hw_init)
+        return;
+
+    if (erosq_bt_route_active || erosq_bt_port_latched || erosq_bt_pcm_dev[0]
+        || erosq_read_output_port() == EROSQ_OUTPUT_BLUETOOTH)
+        erosq_set_bluetooth_route(0);
+}
+
 void erosq_set_bluetooth_route(int on)
 {
     erosq_bt_route_active = on ? 1 : 0;
@@ -311,15 +321,21 @@ void erosq_set_bluetooth_route(int on)
     }
 
     last_ps = -1;
-    erosq_bt_port_latched = 0;
     if (!on) {
         erosq_bt_apply_attempts = 0;
+        if (!erosq_bt_port_latched && !erosq_bt_pcm_dev[0]
+            && erosq_read_output_port() != EROSQ_OUTPUT_BLUETOOTH) {
+            erosq_route_log("wired already", 0, erosq_read_output_port());
+            return;
+        }
+        erosq_bt_port_latched = 0;
         pcm_play_lock();
         erosq_restore_wired_output();
         pcm_play_unlock();
         return;
     }
 
+    erosq_bt_port_latched = 0;
     erosq_bt_apply_attempts = 0;
     unlink(EROSQ_ROUTE_LOG);
     unlink(EROSQ_ROUTE_LOG_SD);

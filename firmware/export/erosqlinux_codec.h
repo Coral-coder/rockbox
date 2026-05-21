@@ -27,6 +27,8 @@ void erosq_set_bluetooth_route(int on);
 void erosq_apply_bluetooth_route(void);
 bool erosq_bluetooth_route_applied(void);
 bool erosq_is_bluetooth_route_active(void);
+/* Hosted BT: wired jack whenever not streaming A2DP (incl. "BT: waiting"). */
+void erosq_ensure_wired_output(void);
 void erosq_notify_pcm_running(void);
 
 #endif
