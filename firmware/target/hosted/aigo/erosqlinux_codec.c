@@ -162,6 +162,42 @@ static bool erosq_switch_to_analog_pcm(void)
     return true;
 }
 
+/* After A2DP, DAC "Output Port Switch" may stay on BT (4); restore jack routing. */
+static void erosq_restore_wired_output(void)
+{
+    long int ps = 0;
+    int status = 0;
+    long int port;
+
+    if (!hw_init)
+        return;
+
+    erosq_switch_to_analog_pcm();
+
+    port = erosq_read_output_port();
+    if (port == EROSQ_OUTPUT_BLUETOOTH)
+        last_ps = -1;
+
+    sysfs_get_int("/sys/class/switch/lineout/state", &status);
+    if (status)
+        ps = 1;
+
+    sysfs_get_int("/sys/class/switch/headset/state", &status);
+    if (status)
+        ps = 2;
+
+    last_ps = -1;
+    erosq_set_output((int)ps);
+    audiohw_set_volume(vol_l_hw, vol_r_hw);
+
+    if (!muted)
+        audiohw_mute(false);
+
+    pcm_restart_active_playback();
+    erosq_route_log("wired restore", ps, erosq_read_output_port());
+    erosq_route_log_sd("wired restore", ps, erosq_read_output_port());
+}
+
 static bool erosq_switch_to_bluetooth_pcm(void)
 {
     if (!erosq_bt_peer[0])
@@ -278,16 +314,18 @@ void erosq_set_bluetooth_route(int on)
     erosq_bt_port_latched = 0;
     if (!on) {
         erosq_bt_apply_attempts = 0;
-        erosq_switch_to_analog_pcm();
-        erosq_get_outputs();
-        erosq_route_log_sd("bt_route off", 0, erosq_read_output_port());
+        pcm_play_lock();
+        erosq_restore_wired_output();
+        pcm_play_unlock();
         return;
     }
 
     erosq_bt_apply_attempts = 0;
     unlink(EROSQ_ROUTE_LOG);
     unlink(EROSQ_ROUTE_LOG_SD);
+    pcm_play_lock();
     erosq_try_bt_audio_path();
+    pcm_play_unlock();
     erosq_route_log_sd("bt_route on", EROSQ_OUTPUT_BLUETOOTH, erosq_read_output_port());
 }
 

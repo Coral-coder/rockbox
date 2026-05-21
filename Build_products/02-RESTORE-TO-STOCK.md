@@ -1,6 +1,6 @@
 # Restore to stock HiBy (NAND) — H2 v2.3 HW4
 
-Use this when the player boots **native Rockbox** by default, recovery is wrong, or you need **factory HiBy Linux** back in NAND.
+Use this when the player does not boot **stock HiBy Linux** by default, recovery is wrong, or you need **factory HiBy v2.3** back in NAND.
 
 ---
 
@@ -60,7 +60,7 @@ You may keep `/.rockbox/rockbox.erosq` — stock flash does not erase SD.
 
 ---
 
-## If flash “completes” but still boots native Rockbox
+## If flash “completes” but still boots bare-metal Rockbox
 
 - Wrong updater (Rockbox Install instead of HiBy).
 - SD still had **patched** `update.upt` (not `2DAC5D42…`).

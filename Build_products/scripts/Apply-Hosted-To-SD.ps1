@@ -4,7 +4,7 @@
 
 .DESCRIPTION
   Copies hosted rockbox.erosq (+ optional BT bring-up script) to /.rockbox/
-  and removes native/dangerous files from the SD card.
+  and removes dangerous non-hosted files from the SD card.
 
 .EXAMPLE
   .\Apply-Hosted-To-SD.ps1 -Drive E: -CopyBtBringup
@@ -20,7 +20,7 @@ $ErrorActionPreference = "Stop"
 $kitRoot = Split-Path -Parent $PSScriptRoot
 $hostedApp = Join-Path $kitRoot "hosted-on-sd\rockbox.erosq"
 $btScript = Join-Path $kitRoot "hosted-on-sd\device-bt-bringup.sh"
-$expectedAppMd5 = "CA89ABB8047B1574015D9593C1A112E7"
+$expectedAppMd5 = "F43779A73D254AFE263736DEA3F67FDD"
 
 if (-not (Test-Path -LiteralPath $hostedApp)) {
     throw "Missing kit file: $hostedApp"

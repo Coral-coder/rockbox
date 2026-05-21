@@ -1,6 +1,6 @@
 #!/bin/sh
 # Hifi Walker H2 (HW4) stock Linux BT bring-up.
-# Pin map + native vs hosted sequences: ../docs/BLUETOOTH-HW4.md
+# HW4 BT bring-up for hosted Rockbox (stock Linux stack).
 # Rockbox invokes this with an empty PATH; tools live in /usr/sbin.
 export PATH=/usr/sbin:/usr/bin:/bin:/sbin
 set -u

@@ -74,7 +74,7 @@ After jztool RAM boot, use **Hiby Player** / **HibyOS Recovery** if visible, the
 
 | Do | Don't |
 |----|-------|
-| **Install or update** with `bootloader.erosq` on SD root | **Restore** with `erosqnative-boot.bin` that starts with `spl.eros` |
+| **Install or update** with `bootloader.erosq` on SD root | **Restore** with a misnamed `*-boot.bin` that starts with `spl.eros` (tarball, not NAND backup) |
 | Remove `bootloader.erosq` after NAND success | Leave `bootloader.erosq` on SD “for next time” |
 | Verify MD5 before load | Use random BL from forum without HW4 match |
 
@@ -87,7 +87,7 @@ After jztool RAM boot, use **Hiby Player** / **HibyOS Recovery** if visible, the
 | jztool “cannot open USB” | Re-run Zadig WinUSB on `A108:1000`; replug; retry USB boot key |
 | Install fails NAND error | Different SD, FAT32 format, or stock `update.upt` |
 | Load OK but black screen | Wrong BL HW — use kit `bootloader.erosq` only |
-| Still native on boot | Flash `update.upt` (`2DAC5D42…`) via stock updater |
+| Still bare-metal Rockbox on boot | Flash `update.upt` (`2DAC5D42…`) via stock updater |
 
 ---
 

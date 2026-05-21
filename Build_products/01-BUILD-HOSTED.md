@@ -1,6 +1,6 @@
 # Build hosted Rockbox (aigoerosq) — H2 HW4
 
-Hosted Rockbox runs **inside stock HiBy Linux**. You are **not** building bare-metal `erosqnative`.
+Hosted Rockbox runs **inside stock HiBy Linux**. Native `erosqnative` builds are documented in [03-NATIVE-VGSKYE.md](03-NATIVE-VGSKYE.md) (vgskye’s repo).
 
 ---
 
@@ -85,9 +85,9 @@ Do **not** put `bootloader.erosq` on SD unless you are deliberately running **Bo
 
 ---
 
-## What you are not building here
+## Not hosted
 
-| Target | Use case |
-|--------|----------|
-| `erosqnative` / `--type=R` | Bare-metal native Rockbox |
-| `H2-v23-patched.upt` | Native-first NAND (wrong for hosted daily use) |
+| Item | Where |
+|------|--------|
+| Native `erosqnative` | [03-NATIVE-VGSKYE.md](03-NATIVE-VGSKYE.md) |
+| `H2-v23-patched.upt` | Rockbox download server (native-first NAND) |

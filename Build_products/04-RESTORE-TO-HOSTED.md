@@ -59,7 +59,7 @@ E:\.rockbox\bcm43438.fw
 
 ```powershell
 (Get-FileHash E:\.rockbox\rockbox.erosq -Algorithm MD5).Hash
-# CA89ABB8047B1574015D9593C1A112E7
+# F43779A73D254AFE263736DEA3F67FDD
 
 (Get-FileHash E:\.rockbox\device-bt-bringup.sh -Algorithm MD5).Hash
 # 0CA9B5A29E54C3E92468D027340AAADD
@@ -90,10 +90,8 @@ Pushing while Rockbox is running often fails (“no space” / file busy).
 
 ---
 
-## Do not confuse with native deploy
+## Bluetooth → wired headphones
 
-| Hosted (this kit) | Native |
-|-------------------|--------|
-| `aigoerosq` `rockbox.erosq` | `erosqnative` build |
-| Linux BT stack | `bcm43438.fw` on SD |
-| HiBy launcher | Power-on = Rockbox |
+After you **disconnect** Bluetooth (menu or remote drop), audio should return to the **wired jack** without rebooting. If it does not, redeploy the `rockbox.erosq` from this kit (includes ALSA route fix).
+
+Native bare-metal builds: [03-NATIVE-VGSKYE.md](03-NATIVE-VGSKYE.md).

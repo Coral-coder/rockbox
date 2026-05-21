@@ -459,6 +459,30 @@ void pcm_playback_invalidate_config(void)
     sinks[cur_sink]->configured_freq = -1U;
 }
 
+void pcm_restart_active_playback(void)
+{
+    const void *start;
+    size_t size;
+
+    if (!pcm_is_initialized())
+        return;
+
+    pcm_play_lock();
+    if (!pcm_playing) {
+        pcm_play_unlock();
+        return;
+    }
+
+    pcm_play_stop_int();
+    pcm_apply_settings();
+    if (pcm_get_more_int(&start, &size))
+        pcm_play_dma_start_int(start, size);
+    else
+        pcm_play_stop_int();
+
+    pcm_play_unlock();
+}
+
 #ifdef HAVE_RECORDING
 /** Low level pcm recording apis **/
 
