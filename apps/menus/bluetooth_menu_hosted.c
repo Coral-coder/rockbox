@@ -14,6 +14,7 @@
 #include "audio.h"
 #include "pcm-internal.h"
 #include "gui/list.h"
+#include "bluetooth_avrcp_hosted.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -52,6 +53,7 @@ static volatile bool bt_stack_live;
 static unsigned int bt_bringup_wait_ticks;
 
 static char bt_status_text[64] = "BT: off";
+static char bt_avrcp_text[48] = "Car controls: off";
 
 static int bt_dev_count;
 static char bt_dev_mac[BT_MAX_DEVICES][BT_MAC_LEN];
@@ -669,6 +671,8 @@ static void bt_auto_thread_fn(void)
 
 static void bt_auto_start(void)
 {
+    /* Car / headset remote control and now-playing info (AVRCP). */
+    bt_avrcp_start();
     if (!bt_auto_thread) {
         bt_auto_run = true;
         bt_auto_thread = create_thread(bt_auto_thread_fn, bt_auto_stack,
@@ -681,6 +685,7 @@ static void bt_auto_start(void)
 
 static void bt_auto_stop(void)
 {
+    bt_avrcp_stop();
     bt_auto_run = false;
     bt_bringup_wait_ticks = 0;
     bt_stack_live = false;
@@ -799,6 +804,8 @@ static bool bt_effective_connected(bool stack_up, bool acl_up)
 
 static void bt_refresh_status_text(void)
 {
+    snprintf(bt_avrcp_text, sizeof(bt_avrcp_text), "%s",
+             bt_avrcp_status_text());
     if (!global_settings.bluetooth_enabled) {
         snprintf(bt_status_text, sizeof(bt_status_text), "BT: off");
         return;
@@ -837,6 +844,8 @@ MENUITEM_SETTING(bt_hosted_enable_item, &global_settings.bluetooth_enabled,
                  bt_enable_callback);
 MENUITEM_RETURNVALUE(bt_hosted_status_item, (unsigned char *)bt_status_text,
                      0, NULL, Icon_NOICON);
+MENUITEM_RETURNVALUE(bt_avrcp_status_item, (unsigned char *)bt_avrcp_text,
+                     0, NULL, Icon_NOICON);
 MENUITEM_FUNCTION(bt_scan_item, 0, (unsigned char *)"Scan for devices",
                   bt_scan_devices_callback, NULL, Icon_NOICON);
 MENUITEM_FUNCTION(bt_paired_item, 0, (unsigned char *)"Paired devices",
@@ -848,6 +857,7 @@ MAKE_MENU(bluetooth_hosted_menu, ID2P(LANG_BLUETOOTH),
           bluetooth_hosted_menu_callback, Icon_NOICON,
           &bt_hosted_enable_item,
           &bt_hosted_status_item,
+          &bt_avrcp_status_item,
           &bt_scan_item,
           &bt_paired_item,
           &bt_disconnect_item);

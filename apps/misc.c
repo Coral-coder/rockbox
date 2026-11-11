@@ -92,6 +92,9 @@
 #include "bookmark.h"
 #include "wps.h"
 #include "playback.h"
+#ifdef HAVE_MULTIMEDIA_KEYS
+#include "cuesheet.h"
+#endif
 #include "voice_thread.h"
 
 #ifdef BOOTFILE
@@ -639,6 +642,67 @@ static void lo_unplug_change(bool inserted)
 }
 #endif /*HAVE_LINEOUT_DETECTION*/
 
+#ifdef HAVE_MULTIMEDIA_KEYS
+/* Seek steps for remote seek keys (car/headset AVRCP FF/REW, iAP).
+ * Short back-step + longer forward-step suits audiobooks and podcasts. */
+#define MULTIMEDIA_REW_STEP_MS   15000l
+#define MULTIMEDIA_FFWD_STEP_MS  30000l
+
+/* Remote next/prev: chapter-aware (cuesheets and MP4/M4B chapters) and,
+ * like the WPS, "previous" restarts the current track/chapter first. */
+static void multimedia_skip(int direction)
+{
+    struct mp3entry *id3 = audio_current_track();
+
+    if (!id3 || !(audio_status() & AUDIO_STATUS_PLAY))
+    {
+        if (direction > 0)
+            audio_next();
+        else
+            audio_prev();
+        return;
+    }
+
+    if (direction > 0)
+    {
+        if (!(id3->cuesheet &&
+              curr_cuesheet_skip(id3->cuesheet, 1, id3->elapsed)))
+            audio_next();
+        return;
+    }
+
+    if (id3->elapsed < DEFAULT_SKIP_THRESH)
+        audio_prev();
+    else if (id3->cuesheet)
+        curr_cuesheet_skip(id3->cuesheet, -1, id3->elapsed);
+    else
+    {
+        audio_pre_ff_rewind();
+        audio_ff_rewind(0);
+    }
+}
+
+static void multimedia_seek(long step_ms)
+{
+    struct mp3entry *id3 = audio_current_track();
+    long pos;
+
+    if (!id3 || !id3->length || !(audio_status() & AUDIO_STATUS_PLAY))
+        return;
+
+    pos = (long)id3->elapsed + step_ms;
+    if (pos < 0)
+        pos = 0;
+    if (pos >= (long)id3->length - 1000)
+    {
+        audio_next();
+        return;
+    }
+    audio_pre_ff_rewind();
+    audio_ff_rewind(pos);
+}
+#endif /* HAVE_MULTIMEDIA_KEYS */
+
 long default_event_handler_ex(long event, void (*callback)(void *), void *parameter)
 {
 #if CONFIG_PLATFORM & (PLATFORM_ANDROID)
@@ -797,18 +861,20 @@ long default_event_handler_ex(long event, void (*callback)(void *), void *parame
             return event;
         }
         case BUTTON_MULTIMEDIA_NEXT:
-            audio_next();
+            multimedia_skip(1);
             return event;
         case BUTTON_MULTIMEDIA_PREV:
-            audio_prev();
+            multimedia_skip(-1);
             return event;
         case BUTTON_MULTIMEDIA_STOP:
             list_stop_handler();
             return event;
         case BUTTON_MULTIMEDIA_REW:
+            multimedia_seek(-MULTIMEDIA_REW_STEP_MS);
+            return event;
         case BUTTON_MULTIMEDIA_FFWD:
-            /* not supported yet, needs to be done in the WPS */
-            return 0;
+            multimedia_seek(MULTIMEDIA_FFWD_STEP_MS);
+            return event;
 #endif
     }
     return 0;
