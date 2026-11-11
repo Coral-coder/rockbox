@@ -52,6 +52,7 @@ static bool search_for_cuesheet(const char *path, struct cuesheet_file *cue_file
     cue_file->pos = 0;
     cue_file->size = 0;
     cue_file->path[0] = '\0';
+    cue_file->format = EMBEDDED_CUESHEET_TEXT;
     slash = strrchr(path, '/');
     if (!slash)
         return false;
@@ -93,6 +94,7 @@ bool look_for_cuesheet_file(struct mp3entry *track_id3, struct cuesheet_file *cu
         cue_file->pos = track_id3->embedded_cuesheet.pos;
         cue_file->size = track_id3->embedded_cuesheet.size;
         cue_file->encoding = track_id3->embedded_cuesheet.encoding;
+        cue_file->format = track_id3->embedded_cuesheet.format;
         strmemccpy(cue_file->path, track_id3->path, MAX_PATH);
         return true;
     }
@@ -201,8 +203,91 @@ static enum eCS_SUPPORTED_TAGS cuesheet_tag_get_option(const char *option)
 }
 
 /* parse cuesheet "cue_file" and store the information in "cue" */
+/* Build a cuesheet from an MP4/M4B Nero chapter list ('chpl' atom).
+ * cue_file->pos points at the chapter count byte; each chapter is
+ * start(8 bytes BE, 100ns units) title_len(1) title(title_len, UTF-8). */
+static bool parse_mp4_chapters(struct cuesheet_file *cue_file,
+                               struct cuesheet *cue)
+{
+    unsigned char count = 0;
+    unsigned char hdr[9];
+    int bytes_left = cue_file->size;
+    int i;
+
+    int fd = open(cue_file->path, O_RDONLY, 0644);
+    if (fd < 0)
+        return false;
+
+    if (lseek(fd, cue_file->pos, SEEK_SET) != cue_file->pos
+        || read(fd, &count, 1) != 1)
+    {
+        close(fd);
+        return false;
+    }
+    bytes_left--;
+
+    memset(cue, 0, sizeof(struct cuesheet));
+    strmemccpy(cue->path, cue_file->path, MAX_PATH);
+    strmemccpy(cue->file, cue_file->path, MAX_PATH);
+    cue->curr_track = cue->tracks;
+
+    for (i = 0; i < count && cue->track_count < MAX_TRACKS
+                && bytes_left >= (int)sizeof(hdr); i++)
+    {
+        struct cue_track_info *track = &cue->tracks[cue->track_count];
+        uint64_t start = 0;
+        int len, keep, j;
+
+        if (read(fd, hdr, sizeof(hdr)) != (ssize_t)sizeof(hdr))
+            break;
+        bytes_left -= sizeof(hdr);
+
+        for (j = 0; j < 8; j++)
+            start = (start << 8) | hdr[j];
+        len = hdr[8];
+        if (len > bytes_left)
+            break;
+
+        keep = MIN(len, (int)sizeof(track->title) - 1);
+        if (keep > 0 && read(fd, track->title, keep) != keep)
+            break;
+        track->title[keep] = '\0';
+        if (keep < len)
+        {
+            /* skip the rest of an over-long title... */
+            lseek(fd, len - keep, SEEK_CUR);
+            /* ...and don't leave a partial UTF-8 sequence behind */
+            j = keep - 1;
+            while (j > 0 && ((unsigned char)track->title[j] & 0xc0) == 0x80)
+                j--;
+            if (j >= 0)
+            {
+                unsigned char lead = track->title[j];
+                int need = lead >= 0xf0 ? 4 : lead >= 0xe0 ? 3 :
+                           lead >= 0xc0 ? 2 : 1;
+                if (j + need > keep)
+                    track->title[j] = '\0';
+            }
+        }
+        bytes_left -= len;
+
+        if (!track->title[0])
+            snprintf(track->title, sizeof(track->title),
+                     "Chapter %d", cue->track_count + 1);
+
+        track->offset = (unsigned long)(start / 10000); /* 100ns -> ms */
+        cue->track_count++;
+    }
+
+    close(fd);
+    return cue->track_count >= 2;
+}
+
 bool parse_cuesheet(struct cuesheet_file *cue_file, struct cuesheet *cue)
 {
+    if (cue_file->format == EMBEDDED_CUESHEET_MP4_CHPL)
+        return parse_mp4_chapters(cue_file, cue);
+
     char line[MAX_PATH];
     char *s;
     unsigned char char_enc = CHAR_ENC_ISO_8859_1;
@@ -531,6 +616,7 @@ bool display_cuesheet_content(char* filename)
     strmemccpy(cue_file.path, filename, MAX_PATH);
     cue_file.pos = 0;
     cue_file.size = 0;
+    cue_file.format = EMBEDDED_CUESHEET_TEXT;
 
     if (!parse_cuesheet(&cue_file, cue))
         return false;

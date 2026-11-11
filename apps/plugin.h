@@ -180,7 +180,7 @@ int plugin_open(const char *plugin, const char *parameter);
  * when this happens please take the opportunity to sort in
  * any new functions "waiting" at the end of the list.
  */
-#define PLUGIN_API_VERSION 282
+#define PLUGIN_API_VERSION 283
 
 /* 239 Marks the removal of ARCHOS HWCODEC and CHARCELL */
 

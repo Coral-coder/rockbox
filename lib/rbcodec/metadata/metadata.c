@@ -455,6 +455,7 @@ bool get_metadata_ex(struct mp3entry* id3, int fd, const char* trackname, int fl
     /* default values for embedded cuesheets */
     id3->has_embedded_cuesheet = false;
     id3->embedded_cuesheet.pos = 0;
+    id3->embedded_cuesheet.format = EMBEDDED_CUESHEET_TEXT;
 
     id3->tracknum = -1;
 

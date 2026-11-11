@@ -56,6 +56,7 @@ struct cuesheet_file {
     int size;
     off_t pos;
     enum character_encoding encoding;
+    enum embedded_cuesheet_format format; /* text CUE or MP4 chapter list */
 };
 
 /* looks if there is a cuesheet file with a name matching path of "track_id3" */

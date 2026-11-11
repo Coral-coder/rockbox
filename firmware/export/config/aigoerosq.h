@@ -37,6 +37,11 @@
 
 /* Audio codec */
 #define HAVE_EROSQ_LINUX_CODEC
+
+#ifndef BOOTLOADER
+/* Bluetooth AVRCP (car / headset) remote keys -> BUTTON_MULTIMEDIA_* */
+#define HAVE_MULTIMEDIA_KEYS
+#endif
 #define HAVE_ALSA_32BIT
 
 /* We don't have hardware controls */

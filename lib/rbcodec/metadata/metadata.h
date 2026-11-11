@@ -225,11 +225,18 @@ enum character_encoding {
     CHAR_ENC_UTF_16_BE,
 };
 
+/* how an embedded cuesheet is stored in the file */
+enum embedded_cuesheet_format {
+    EMBEDDED_CUESHEET_TEXT = 0,  /* plain-text CUE sheet (ID3/Vorbis/APE tag) */
+    EMBEDDED_CUESHEET_MP4_CHPL,  /* MP4/M4B Nero chapter list ('chpl' atom) */
+};
+
 /* cache embedded cuesheet details */
 struct embedded_cuesheet {
     int size;
     off_t pos;
     enum character_encoding encoding;
+    enum embedded_cuesheet_format format;
 };
 
 struct mp3entry {

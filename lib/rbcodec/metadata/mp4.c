@@ -786,17 +786,43 @@ static bool read_mp4_container(int fd, struct mp3entry* id3,
 
         case MP4_chpl:
             {
-                /* ADDME: add support for real chapters. Right now it's only
-                 * used for Nero's gapless hack */
+                /* Nero chapter list. Layout: version(1) flags(3)
+                 * [reserved(4) if version != 0] count(1), then per chapter
+                 * start(8, 100ns units) title_len(1) title(UTF-8).
+                 *
+                 * A single chapter is Nero's gapless hack (its start is the
+                 * encoder delay). Two or more chapters are real chapters
+                 * (audiobooks, podcasts); expose those as an embedded
+                 * cuesheet so chapter skipping / titles work in the WPS. */
+                uint8_t version    = 0;
                 uint8_t chapters   = 0;
                 uint64_t timestamp = 0;
 
-                lseek(fd, 8, SEEK_CUR);
-                read_uint8(fd, &chapters);
-                size -= 9;
+                if (size < 5)
+                    break;
+                read_uint8(fd, &version);
+                lseek(fd, 3, SEEK_CUR);
+                size -= 4;
+                if (version != 0 && size >= 4) {
+                    lseek(fd, 4, SEEK_CUR);
+                    size -= 4;
+                }
+                if (size < 1)
+                    break;
 
-                /* the first chapter will be used as the lead_trim */
-                if (chapters > 0) {
+                off_t list_pos = lseek(fd, 0, SEEK_CUR);
+                read_uint8(fd, &chapters);
+                size -= 1;
+
+                if (chapters >= 2) {
+                    id3->has_embedded_cuesheet = true;
+                    id3->embedded_cuesheet.pos = list_pos;
+                    id3->embedded_cuesheet.size = size + 1;
+                    id3->embedded_cuesheet.encoding = CHAR_ENC_UTF_8;
+                    id3->embedded_cuesheet.format = EMBEDDED_CUESHEET_MP4_CHPL;
+                }
+                else if (chapters == 1 && size >= 8) {
+                    /* the only chapter's start is used as the lead_trim */
                     read_uint64be(fd, &timestamp);
                     id3->lead_trim = (timestamp * id3->frequency) / 10000000;
                     size -= 8;
